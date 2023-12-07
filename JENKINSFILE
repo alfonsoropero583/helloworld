@@ -1,52 +1,63 @@
 pipeline {
     agent any
-
-     stages {
-        stage('Get Code') {
-            steps {
-                // Obtener código del repo
-                git 'https://github.com/anieto-unir/helloworld.git'
-            }
-        }
-    
-        stage('Build') {
-           steps {
-              echo 'Eyyy, esto es Python. No hay que compilar nada!!!'
-	          echo WORKSPACE
-              bat 'dir'
-           }
-        }
-        
-        stage('Unit') {
-            steps {
-                catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
-                    bat '''
-                        set PYTHONPATH=%WORKSPACE%
-                        pytest --junitxml=result-unit.xml test\\unit
-                    '''
-               }
-            }
-        }   
-
-
-        stage('Rest') {
-            steps {
-                bat '''
-                    set FLASK_APP=app\\api.py
-                    set FLASK_ENV=development
-                    start flask run
-                    start java -jar C:\\Unir\\Ejercicios\\wiremock\\wiremock-jre8-standalone-2.28.0.jar --port 9090 --root-dir C:\\Unir\\Ejercicios\\wiremock
-                    set PYTHONPATH=%WORKSPACE%
-                    pytest --junitxml=result-rest.xml test\\rest
-                '''
-            }    
-        }
-
-        stage('Results') {
-            steps {
-                junit 'result*.xml' 
-            }
-        }
-     
+    stages {
+    	stage('Copiar Git'){
+    		steps {
+    			git credentialsId: 'alfonsoropero583', url: 'https://github.com/alfonsoropero583/helloworld.git'
+    		}	
+    	}
+    	stage('Unit'){
+    		steps {
+    			bat'''
+    				set PYTHONPATH=%WORKSPACE%
+    				pytest --junitxml=result-unit.xml test\\unit
+    			'''
+    		}	
+    	}
+    	stage('Rest'){
+    		steps {
+    			bat'''
+    				set FLASK_APP=app\\api.py
+    				set FLASK_ENV=development
+    				start flask run
+    				start java -jar C:\\ProgramData\\Jenkins\\.jenkins\\workspace\\CasoPractico_1_1\\wiremock-standalone-3.3.1.jar --port 9090 --root-dir C:\\ProgramData\\Jenkins\\.jenkins\\workspace\\CasoPractico_1_1\\wiremock
+    			'''
+    			bat'''
+    				set PYTHONPATH=%WORKSPACE%
+    				pytest --junitxml=result-rest.xml test\\rest
+    			'''
+    		}	
+    	}
+    	stage('Paralelo'){
+    		parallel{
+    			stage('Paralelo Unit'){
+		    		steps {
+		    			bat'''
+		    				set PYTHONPATH=%WORKSPACE%
+		    				pytest test\\unit
+		    			'''
+		    		}	
+		    	}
+		    	stage('Paralelo Rest'){
+		    		steps {
+		    			bat'''
+		    				set FLASK_APP=app\\api.py
+		    				set FLASK_ENV=development
+		    				start flask run
+		    				start java -jar C:\\ProgramData\\Jenkins\\.jenkins\\workspace\\CasoPractico_1_1\\wiremock-standalone-3.3.1.jar --port 9090 --root-dir C:\\ProgramData\\Jenkins\\.jenkins\\workspace\\CasoPractico_1_1\\wiremock
+		    			'''
+		    			bat'''
+		    				set PYTHONPATH=%WORKSPACE%
+		    				pytest test\\rest
+		    			'''
+		    		}	
+		    	}
+    		}
+    	}
+    	stage('Resultado'){
+    		steps {
+    			junit 'result*.xml'
+    		}	
+    	}	
     }
 }
