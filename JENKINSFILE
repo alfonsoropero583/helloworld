@@ -10,7 +10,7 @@ pipeline {
     		steps {
     			bat'''
     				set PYTHONPATH=%WORKSPACE%
-    				pytest --junitxml=result-unit.xml test\\unit
+    				pytest test\\unit
     			'''
     		}	
     	}
@@ -24,7 +24,7 @@ pipeline {
     				start java -jar C:\\ProgramData\\Jenkins\\.jenkins\\workspace\\CasoPractico_1_1\\wiremock-standalone-3.3.1.jar --port 9090 --root-dir C:\\ProgramData\\Jenkins\\.jenkins\\workspace\\CasoPractico_1_1\\wiremock
     			'''
     			bat'''
-    				pytest --junitxml=result-rest.xml test\\rest
+    				pytest test\\rest
     			'''
     		}	
     	}
@@ -34,21 +34,21 @@ pipeline {
 		    		steps {
 		    			bat'''
 		    				set PYTHONPATH=%WORKSPACE%
-		    				pytest test\\unit
+		    				pytest --junitxml=result-unit.xml test\\unit
 		    			'''
 		    		}	
 		    	}
 		    	stage('Paralelo Rest'){
 		    		steps {
 		    			bat'''
+							set PYTHONPATH=%WORKSPACE%
 		    				set FLASK_APP=app\\api.py
 		    				set FLASK_ENV=development
 		    				start flask run
 		    				start java -jar C:\\ProgramData\\Jenkins\\.jenkins\\workspace\\CasoPractico_1_1\\wiremock-standalone-3.3.1.jar --port 9090 --root-dir C:\\ProgramData\\Jenkins\\.jenkins\\workspace\\CasoPractico_1_1\\wiremock
 		    			'''
 		    			bat'''
-		    				set PYTHONPATH=%WORKSPACE%
-		    				pytest test\\rest
+		    				pytest --junitxml=result-rest.xml test\\rest
 		    			'''
 		    		}	
 		    	}
