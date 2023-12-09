@@ -27,12 +27,7 @@ pipeline {
 		    				pytest --junitxml=result-unit.xml test\\unit
 		    			'''
 		    			stash includes: 'result-unit.xml', name: 'result-unit'
-		    		}
-		    		post {
-                        success {
-                            cleanWs notFailBuild: true
-                        }
-                    }
+		    		}	
 		    	}
 		    	stage('Paralelo Rest'){
 		    		agent {
@@ -82,8 +77,15 @@ pipeline {
 				} 
 			}
     		steps {
+				echo "Lanzado Por: "+NODE_NAME
+    		    echo "Espacio de trabajo: "+WORKSPACE
 				echo 'Realizado un Deploy'
-    		}	
+    		}
+			post {
+				success {
+					cleanWs notFailBuild: true
+				}
+			}
     	}
     }
     post {
