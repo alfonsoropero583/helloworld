@@ -3,29 +3,7 @@ pipeline {
     stages {
     	stage('Copiar Git'){
     		steps {
-    			git 'https://github.com/alfonsoropero583/helloworld.git'
-    		}	
-    	}
-    	stage('Unit'){
-    		steps {
-    			bat'''
-    				set PYTHONPATH=%WORKSPACE%
-    				pytest test\\unit
-    			'''
-    		}	
-    	}
-    	stage('Rest'){
-    		steps {
-    			bat'''
-    				set PYTHONPATH=%WORKSPACE%
-    				set FLASK_APP=app\\api.py
-    				set FLASK_ENV=development
-    				start flask run
-    				start java -jar C:\\ProgramData\\Jenkins\\.jenkins\\workspace\\CasoPractico_1_1\\wiremock-standalone-3.3.1.jar --port 9090 --root-dir C:\\ProgramData\\Jenkins\\.jenkins\\workspace\\CasoPractico_1_1\\wiremock
-    			'''
-    			bat'''
-    				pytest test\\rest
-    			'''
+    			git branch: 'develop', url: 'https://github.com/alfonsoropero583/helloworld.git'
     		}	
     	}
     	stage('Paralelo'){
