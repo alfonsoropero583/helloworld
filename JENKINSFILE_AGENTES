@@ -75,6 +75,16 @@ pipeline {
     			cleanWs()
     		}	
     	}
+		stage('Deploy'){
+    		agent { 
+				node { 
+					label 'Agente-A' 
+				} 
+			}
+    		steps {
+				echo 'Realizado un Deploy'
+    		}	
+    	}
     }
     post {
         success {
