@@ -1,0 +1,87 @@
+pipeline {
+    agent none
+    stages {
+        stage('Copiar Git'){
+            agent {
+	    	    label "main"
+	    	}
+    		steps {
+    		    echo "Lanzado Por: "+NODE_NAME
+    		    echo "Espacio de trabajo: "+WORKSPACE
+    			git 'https://github.com/alfonsoropero583/helloworld.git'
+    			stash includes: '/', name: 'builtGit'
+    		}
+    	}
+    	stage('Paralelo'){
+    		parallel{
+    			stage('Paralelo Unit'){
+	    			agent {
+	    				label "AgenteA"
+	    			}
+		    		steps {
+		    		    unstash 'builtGit'
+		    		    echo "Lanzado Por: "+NODE_NAME
+		    		    echo "Espacio de trabajo: "+WORKSPACE
+		    			bat'''
+		    				set PYTHONPATH=%WORKSPACE%
+		    				pytest --junitxml=result-unit.xml test\\unit
+		    			'''
+		    			stash includes: 'result-unit.xml', name: 'result-unit'
+		    		}
+		    		post {
+                        success {
+                            cleanWs notFailBuild: true
+                        }
+                    }
+		    	}
+		    	stage('Paralelo Rest'){
+		    		agent {
+	    				label "AgenteB"
+	    			}
+		    		steps {
+		    		    unstash 'builtGit'
+		    		    echo "Lanzado Por: "+NODE_NAME
+		    		    echo "Espacio de trabajo: "+WORKSPACE
+		    			bat'''
+		    			    set PYTHONPATH=%WORKSPACE%
+		    				set FLASK_APP=app\\api.py
+		    				set FLASK_ENV=development
+		    				start flask run
+		    				start java -jar C:\\ProgramData\\Jenkins\\.jenkins\\workspace\\CasoPractico_1_1\\wiremock-standalone-3.3.1.jar --port 9090 --root-dir C:\\ProgramData\\Jenkins\\.jenkins\\workspace\\CasoPractico_1_1\\wiremock
+		    			'''
+		    			bat'''
+		    				pytest --junitxml=result-rest.xml test\\rest
+		    			'''
+		    			stash includes: 'result-rest.xml', name: 'result-rest'
+		    		}
+		    		post {
+                        success {
+                            cleanWs notFailBuild: true
+                        }
+                    }
+		    	}
+    		}
+    	}
+    	stage('Resultado'){
+    		agent {
+    			label "main"
+    		}
+    		steps {
+                echo "Lanzado Por: "+NODE_NAME
+    		    echo "Espacio de trabajo: "+WORKSPACE
+    		    unstash 'result-unit'
+    		    unstash 'result-rest'
+    			junit 'result-*.xml'
+    			cleanWs()
+    		}	
+    	}
+    }
+    post {
+        success {
+            echo "Finalizado."
+        }
+		unsuccessful {
+			echo "Ha fallado."
+		}
+    }
+}

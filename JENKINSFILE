@@ -1,0 +1,63 @@
+pipeline {
+    agent any
+    stages {
+    	stage('Copiar Git'){
+    		steps {
+    			git 'https://github.com/alfonsoropero583/helloworld.git'
+    		}	
+    	}
+    	stage('Unit'){
+    		steps {
+    			bat'''
+    				set PYTHONPATH=%WORKSPACE%
+    				pytest test\\unit
+    			'''
+    		}	
+    	}
+    	stage('Rest'){
+    		steps {
+    			bat'''
+    				set PYTHONPATH=%WORKSPACE%
+    				set FLASK_APP=app\\api.py
+    				set FLASK_ENV=development
+    				start flask run
+    				start java -jar C:\\ProgramData\\Jenkins\\.jenkins\\workspace\\CasoPractico_1_1\\wiremock-standalone-3.3.1.jar --port 9090 --root-dir C:\\ProgramData\\Jenkins\\.jenkins\\workspace\\CasoPractico_1_1\\wiremock
+    			'''
+    			bat'''
+    				pytest test\\rest
+    			'''
+    		}	
+    	}
+    	stage('Paralelo'){
+    		parallel{
+    			stage('Paralelo Unit'){
+		    		steps {
+		    			bat'''
+		    				set PYTHONPATH=%WORKSPACE%
+		    				pytest --junitxml=result-unit.xml test\\unit
+		    			'''
+		    		}	
+		    	}
+		    	stage('Paralelo Rest'){
+		    		steps {
+		    			bat'''
+							set PYTHONPATH=%WORKSPACE%
+		    				set FLASK_APP=app\\api.py
+		    				set FLASK_ENV=development
+		    				start flask run
+		    				start java -jar C:\\ProgramData\\Jenkins\\.jenkins\\workspace\\CasoPractico_1_1\\wiremock-standalone-3.3.1.jar --port 9090 --root-dir C:\\ProgramData\\Jenkins\\.jenkins\\workspace\\CasoPractico_1_1\\wiremock
+		    			'''
+		    			bat'''
+		    				pytest --junitxml=result-rest.xml test\\rest
+		    			'''
+		    		}	
+		    	}
+    		}
+    	}
+    	stage('Resultado'){
+    		steps {
+    			junit 'result*.xml'
+    		}	
+    	}	
+    }
+}
