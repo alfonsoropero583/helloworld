@@ -1,99 +1,102 @@
 pipeline {
     agent none
     stages {
-        stage('Copiar Git'){
-            agent {
-	    	    label "main"
-	    	}
-    		steps {
-    		    echo "Lanzado Por: "+NODE_NAME
-    		    echo "Espacio de trabajo: "+WORKSPACE
-    			git 'https://github.com/alfonsoropero583/helloworld.git'
-    			stash includes: '/', name: 'builtGit'
-    		}
-    	}
-    	stage('Paralelo'){
-    		parallel{
-    			stage('Paralelo Unit'){
-	    			agent {
-	    				label "AgenteA"
-	    			}
-		    		steps {
-		    		    unstash 'builtGit'
-		    		    echo "Lanzado Por: "+NODE_NAME
-		    		    echo "Espacio de trabajo: "+WORKSPACE
-		    			bat'''
-		    				set PYTHONPATH=%WORKSPACE%
-		    				pytest --junitxml=result-unit.xml test\\unit
-		    			'''
-		    			stash includes: 'result-unit.xml', name: 'result-unit'
-		    		}	
-		    	}
-		    	stage('Paralelo Rest'){
-		    		agent {
-	    				label "AgenteB"
-	    			}
-		    		steps {
-		    		    unstash 'builtGit'
-		    		    echo "Lanzado Por: "+NODE_NAME
-		    		    echo "Espacio de trabajo: "+WORKSPACE
-		    			bat'''
-		    			    set PYTHONPATH=%WORKSPACE%
-		    				set FLASK_APP=app\\api.py
-		    				set FLASK_ENV=development
-		    				start flask run
-		    				start java -jar C:\\ProgramData\\Jenkins\\.jenkins\\workspace\\CasoPractico_1_1\\wiremock-standalone-3.3.1.jar --port 9090 --root-dir C:\\ProgramData\\Jenkins\\.jenkins\\workspace\\CasoPractico_1_1\\wiremock
-		    			'''
-		    			bat'''
-		    				pytest --junitxml=result-rest.xml test\\rest
-		    			'''
-		    			stash includes: 'result-rest.xml', name: 'result-rest'
-		    		}
-		    		post {
-                        success {
-                            cleanWs notFailBuild: true
-                        }
-                    }
-		    	}
-    		}
-    	}
-    	stage('Resultado'){
-    		agent {
-    			label "main"
-    		}
-    		steps {
-                echo "Lanzado Por: "+NODE_NAME
-    		    echo "Espacio de trabajo: "+WORKSPACE
-    		    unstash 'result-unit'
-    		    unstash 'result-rest'
-    			junit 'result-*.xml'
-    			cleanWs()
-    		}	
-    	}
-		stage('Deploy'){
-    		agent { 
-				node { 
-					label 'Agente-A' 
-				} 
+		stage('Copy Git'){
+			agent {
+				label "AgenteA"
 			}
     		steps {
 				echo "Lanzado Por: "+NODE_NAME
-    		    echo "Espacio de trabajo: "+WORKSPACE
-				echo 'Realizado un Deploy'
-    		}
-			post {
-				success {
-					cleanWs notFailBuild: true
+				echo "Espacio de trabajo: "+WORKSPACE
+    			git 'https://github.com/alfonsoropero583/helloworld.git'
+				stash includes: '/', name: 'builtGit'
+    		}	
+    	}
+		stage('Parallel'){
+			parallel{
+				stage('Rest'){
+					agent {
+						label "AgenteA"
+					}
+					steps {
+					    unstash 'builtGit'
+						echo "Lanzado Por: "+NODE_NAME
+						echo "Espacio de trabajo: "+WORKSPACE
+						bat'''
+							set PYTHONPATH=%WORKSPACE%
+							set FLASK_APP=app\\api.py
+							set FLASK_ENV=development
+							start flask run
+							start java -jar C:\\caso_1_2\\apps\\wiremock-standalone-3.3.1.jar --port 9090 --root-dir test\\wiremock
+						'''
+						bat'''
+							pytest --junitxml=result-rest.xml test\\rest
+						'''
+					}	
+				}
+				stage('Static'){
+					agent {
+						label "AgenteB"
+					}
+					steps {
+						unstash 'builtGit'
+						echo "Lanzado Por: "+NODE_NAME
+						echo "Espacio de trabajo: "+WORKSPACE
+						bat'''
+							flake8 --format=pylint --exit-zero app>flake8.out
+						'''
+						recordIssues qualityGates: [[threshold: 8, type: 'TOTAL', unstable: true], [threshold: 10, type: 'TOTAL', unstable: false]], tools: [flake8(pattern: 'flake8.out')]
+					}
+				}
+				stage('Bandit'){
+					agent {
+						label "AgenteC"
+					}
+					steps {
+						unstash 'builtGit'
+						echo "Lanzado Por: "+NODE_NAME
+						echo "Espacio de trabajo: "+WORKSPACE
+						bat'''
+							bandit -r . --exit-zero -f custom -o bandit.out -ll --msg-template "{abspath}:{line}: [{test_id}] {msg}"
+						'''
+						recordIssues qualityGates: [[threshold: 2, type: 'TOTAL', unstable: true], [threshold: 4, type: 'TOTAL', unstable: false]], tools: [pyLint(name: 'Bandit', pattern: 'bandit.out')]
+					}
+				}
+				stage('Cobertura'){
+					agent {
+						label "AgenteA"
+					}
+					steps {
+						unstash 'builtGit'
+						echo "Lanzado Por: "+NODE_NAME
+						echo "Espacio de trabajo: "+WORKSPACE
+						bat'''
+							coverage run --branch --source=app --omit=app\\api.py -m pytest --junitxml=result-unit.xml test\\unit
+							coverage xml
+						'''
+
+						cobertura coberturaReportFile: 'coverage.xml', autoUpdateHealth: false, autoUpdateStability: false, conditionalCoverageTargets: '90, 0, 80', failNoReports: false, failUnhealthy: false, failUnstable: false, lineCoverageTargets: '95, 0, 85', maxNumberOfBuilds: 1, onlyStable: false, sourceEncoding: 'ASCII', zoomCoverageChart: false
+					}
+				}
+				stage('JMeter'){
+					agent {
+						label "AgenteA"
+					}
+					steps {
+						unstash 'builtGit'
+						echo "Lanzado Por: "+NODE_NAME
+						echo "Espacio de trabajo: "+WORKSPACE
+						bat'''
+							set PYTHONPATH=%WORKSPACE%
+							set FLASK_APP=app\\api.py
+							set FLASK_ENV=development
+							start flask run
+							C:\\caso_1_2\\apache-jmeter-5.6.3\\bin\\jmeter -n -t test\\jmeter\\test_plan.jmx -f -l flask.jtl
+						'''
+						perfReport sourceDataFiles: 'flask.jtl'
+					}
 				}
 			}
-    	}
-    }
-    post {
-        success {
-            echo "Finalizado."
-        }
-		unsuccessful {
-			echo "Ha fallado."
 		}
     }
 }
