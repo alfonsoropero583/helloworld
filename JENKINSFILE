@@ -3,7 +3,7 @@ pipeline {
     stages {
     	stage('Copy Git'){
     		steps {
-    			git 'https://github.com/alfonsoropero583/helloworld.git'
+    			git branch: 'feature_fix_coverage', url: 'https://github.com/alfonsoropero583/helloworld.git'
     		}	
     	}
     	stage('Rest'){
